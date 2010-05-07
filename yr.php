@@ -1,5 +1,4 @@
 <?php
-if(preg_match('#' . basename(__FILE__) . '#', $_SERVER['PHP_SELF'])) { die('You are not allowed to call this page directly.'); }
 /*
  yr.php  -  YR.no forecast on YOUR page!
  
@@ -8,25 +7,31 @@ if(preg_match('#' . basename(__FILE__) . '#', $_SERVER['PHP_SELF'])) { die('You 
 
  You need a webserver with PHP version 5 or later to run this script.
  A lot of comments are in Norwegian only. We will be translating to english whenever we have the opportunity.
- For feedback / bug repports / feature requests, please contact:  Lennart André Rolland <lennart.andre.rolland@nrk.no>
+ For feedback / bug repports / feature requests, please contact:  Lennart AndrÃˆ Rolland <lennart.andre.rolland@nrk.no>
 
  ###### Changelog
 
- Versjon: 2.6 - Lennart André Rolland (lennart.andre.rolland@nrk.no) / NRK - 2008.11.11 11:48
+ Versjon: 2.7 - Jacob Friis Saxberg (jacob@webcom.dk) / Webcom - 2010.05
+	Should consider using http://www.404it.no/easyyr/ as backend
+ * Moved settings to WordPress plugin
+ * Forecast in english
+ * Saved in UTF8
+ 
+ Versjon: 2.6 - Lennart AndrÃˆ Rolland (lennart.andre.rolland@nrk.no) / NRK - 2008.11.11 11:48
  * Added option to remove banner ($yr_use_banner)
  * Added option to allow any target for yr.no urls ($yr_link_target)
 
- Versjon: 2.5 - Lennart André Rolland (lennart.andre.rolland@nrk.no) / NRK - 2008.09.25 09:24
+ Versjon: 2.5 - Lennart AndrÃˆ Rolland (lennart.andre.rolland@nrk.no) / NRK - 2008.09.25 09:24
  * Cache will now update on parameter changes (cache file is prefixed with md5 digest of all relevant parameters)
    This change will in the future make it easier to use the script for multiple locations in one go.   
  * Most relevant comments translated to english
 
  Versjon 2.4 - Sven-Ove Bjerkan (sven-ove@smart-media.no) / Smart-Media AS - 2008.10.22 12:14
  * Endret funksjonalitet ifbm med visning av PHP-feil (fjernet blant annet alle "@", dette styres av error_reporting())
- * Ved feilmelding så ble denne lagret i lokal cache slik at man fikk opp feilmld hver gang inntil "$yr_maxage" inntreffer og den forsøker å laste på nytt - den cacher nå ikke hvis det oppstår en feil
+ * Ved feilmelding sÃ‚ ble denne lagret i lokal cache slik at man fikk opp feilmld hver gang inntil "$yr_maxage" inntreffer og den forsÂ¯ker Ã‚ laste pÃ‚ nytt - den cacher nÃ‚ ikke hvis det oppstÃ‚r en feil
  * $yr_use_text, $yr_use_links og $yr_use_table ble overstyrt til "true" uavhengig av brukerens innstilling - rettet!
 
- Versjon: 2.3 - Lennart André Rolland (lennart.andre.rolland@nrk.no) / NRK - 2008.09.25 09:24
+ Versjon: 2.3 - Lennart AndrÃˆ Rolland (lennart.andre.rolland@nrk.no) / NRK - 2008.09.25 09:24
  * File permissions updated
  * Caching is stored in HTML isntead of XML for security
  * Other security and efficiency improvements
@@ -42,153 +47,17 @@ if(preg_match('#' . basename(__FILE__) . '#', $_SERVER['PHP_SELF'])) { die('You 
 
  */
 
-///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  /
-///  ///  ///  ///  ///  Settings  ///  ///  ///  ///  ///  ///  ///  ///  //
-//  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///
-/*
-// 1. Lenke: Lenke til stedet på yr.no (Uten siste skråstrek. Bruk vanlig æøå i lenka )
-//    Link: Link to the url for the location on yr.no (Without the last Slash.)
-$yr_url='http://www.yr.no/place/Denmark/North_Jutland/Skagen';
-//$yr_url='http://www.yr.no/sted/Danmark/Nordjylland/Skagen';
-
-// 2. Stedsnavnet: Skriv inn navnet på stedet. La stå tom for å falle tilbake til navnet i lenken
-//    Location: The name of the location. Leave empty to fallback to the location in the url.
-$yr_name='Skagen';
-
-// 3. Bruk header og footer: Velg om du vil ha med header og/eller  footer
-//    Use Header and footers: Select to have HTML headers/footers wrapping the content (useful for debugging)
-//PS: Header for HTML dokumentet er XHTML 1.0 Strict
-//    Skrus som regel av når du inlemmer i eksisterende dokument!
-//
-$yr_use_header=$yr_use_footer=false;
-
-// 4. Deler: Velg delene av varselet du vil ta med!
-//    Parts: Choose which parts of the forecast to include
-$yr_use_banner=false; //yr.no Banner
-$yr_use_text=true;   //Tekstvarsel
-$yr_use_links=true;  //Lenker til varsel på yr.no
-$yr_use_table=true;  //Tabellen med varselet
-
-// 5. Mellomlagringstid: Antall sekunder før nytt varsel hentes fra yr.no.
-//    Cachetime: Number of seconds to keep forecast in local cache
-//    Den anbefalt verdien på 1200 vil oppdatere siden hver 20. minutt.
-//
-//    PS: Vi ønsker at du setter 20 minutters mellomlagringstid fordi
-//    det vil gi høyere ytelse, både for yr.no og deg! MEN for å få til dette
-//    vil vi opprette en mappe og lagre en fil i denne mappen. Vi har gått
-//    gjennom scriptet veldig nøye for å forsikre oss om at det er feilfritt.
-//    Likevel er dette ikke helt uproblematisk i forhold til sikkerhet.
-//    Hvis du har problemer med dette kan du sette $yr_maxage til 0 for å skru
-//    av mellomlagringen helt!
-$yr_maxage=600;
-
-// 6. Utløpstid: Denne instillingen lar deg velge hvor lenge yr.no har på å
-//    levere varselet i sekunder.
-//    Timeout: How long before this script gives up fetching data from yr.no
-//
-//    Hvis yr.no skulle være nede eller det er
-//    forstyrrelser i båndbredden ellers, vil varselet erstattes med en
-//    feilmelding til situasjonen er bedret igjen. PS: gjelder kun når nytt
-//    varsel hentes! Påvirker ikke varsel mens siden viser varsel fra
-//    mellomlageret. Den anbefalte verdien på 10 sekunder fungerer bra.
-$yr_timeout=10;
-
-// 7. Mellomlagrinsmappe: Velg navn på mappen til mellomlagret data.
-//    Cachefolder: Where to put cache data
-//
-//Dette scriptet vil forsøke å opprette mappen om den ikke finnes.
-$yr_datadir='yr_cache';
-
-
-// 8. Lenke mål: Velg hvilken target som skal brukes på lenker til yr.no
-//    Link target: Choose which target to use for links to yr.no
-$yr_link_target='_top';
-
-// 9. Vis feilmeldinger: Sett til "true" hvis du vil ha feilmeldinger.
-//    Show errors: Useful while debugging.
-//
-//greit ved feilsøking, men bør ikke være aktivert i drift.
-$yr_vis_php_feilmeldinger=true;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+if(preg_match('#' . basename(__FILE__) . '#', $_SERVER['PHP_SELF'])) { die('You are not allowed to call this page directly.'); }
 
 ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  /
 ///  ///  ///  ///  ///  Code ///  ///  ///  ///  ///  ///  ///  ///  ///  //
 //  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///
-// Skru på feilmeldinger i starten
-if($yr_vis_php_feilmeldinger) {
-	error_reporting(E_ALL);
-	ini_set('display_errors', true);
-}
-else {
-	error_reporting(0);
-	ini_set('display_errors', false);
-}
-
-//Opprett en komunikasjon med yr
-//$yr_xmlparse = &new YRComms();
-//Opprett en presentasjon
-//$yr_xmldisplay = &new YRDisplay();
-
-$yr_try_curl=true;
-
-//Gjenomfør oppdraget basta bom.
-//die($yr_xmldisplay->generateHTMLCached($yr_url, $yr_name, $yr_xmlparse, $yr_url, $yr_try_curl, $yr_use_header, $yr_use_footer, $yr_use_banner, $yr_use_text, $yr_use_links, $yr_use_table, $yr_maxage, $yr_timeout, $yr_link_target));
-*/
-
-///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  /
-///  ///  ///  ///  ///  Hjelpekode starter her   ///  ///  ///  ///  ///  //
-//  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///  ///
-
-
-function retar($array, $html = false, $level = 0) {
-	if(is_array($array)){
-		$space = $html ? "&nbsp;" : " ";
-		$newline = $html ? "<br />" : "\n";
-		$spaces='';
-		for ($i = 1; $i <= 3; $i++)$spaces .= $space;
-		$tabs=$spaces;
-		for ($i = 1; $i <= $level; $i++)$tabs .= $spaces;
-		$output = "Array(" . $newline . $newline;
-		$cnt=sizeof($array);
-		$j=0;
-		foreach($array as $key => $value) {
-			$j++;
-			if (is_array($value)) {
-				$level++;
-				$value = retar($value, $html, $level);
-				$level--;
-			}
-			else $value="'$value'";
-			$output .=  "$tabs'$key'=> $value";
-			if($j<$cnt)$output .=  ',';
-			$output .=  $newline;
-		}
-		$output.=$tabs.')'.$newline;
-	}
-	else{
-		$output="'$array'";
-	}
-	return $output;
-}
 
 
 // Klasse for lesing og tilrettelegging av YR data
 class YRComms{
 
-	//Generer gyldig yr.no array med værdata byttet ut med en enkel feilmelding
+	//Generer gyldig yr.no array med vÃŠrdata byttet ut med en enkel feilmelding
 	private function getYrDataErrorMessage($msg="Feil"){
 		return Array(
       '0'=> Array('tag'=> 'WEATHERDATA','type'=> 'open','level'=> '1'),
@@ -203,7 +72,7 @@ class YRComms{
 		);
 	}
 
-	//Generer gyldig yr.no XML med værdata byttet ut med en enkel feilmelding
+	//Generer gyldig yr.no XML med vÃŠrdata byttet ut med en enkel feilmelding
 	private function getYrXMLErrorMessage($msg="Feil"){
 		$msg=$this->getXMLEntities($msg);
 		//die('errmsg:'.$msg);
@@ -224,15 +93,15 @@ EOT
 		return $data;
 	}
 	
-	// Sørger for å laste ned XML fra yr.no og leverer data tilbake i en streng
+	// SÂ¯rger for Ã‚ laste ned XML fra yr.no og leverer data tilbake i en streng
 	private function loadXMLData($xml_url,$try_curl=true,$timeout=10){
 		global $yr_datadir;
 		//$xml_url.='/varsel.xml';
 		$xml_url.='/forecast.xml';
-		// Lag en timeout på contexten
+		// Lag en timeout pÃ‚ contexten
 		$ctx = stream_context_create(array( 'http' => array('timeout' => $timeout)));
 
-		// Prøv å åpne direkte først
+		// PrÂ¯v Ã‚ Ã‚pne direkte fÂ¯rst
 		//NOTE: This will spew ugly errors even when they are handled later. There is no way to avoid this but prefixing with @ (slow) or turning off error reporting
   		$data=file_get_contents($xml_url,0,$ctx);
 
@@ -244,7 +113,7 @@ EOT
 			$lokal_xml_url = $yr_datadir .'/curl.temp.xml';
 			$data='';
 			$ch = curl_init($xml_url);
-			// Åpne den lokale temp filen for skrive tilgang (med cURL hooks enablet)
+			// â‰ˆpne den lokale temp filen for skrive tilgang (med cURL hooks enablet)
 			$fp = fopen($lokal_xml_url, "w");
 			// Last fra yr.no til lokal kopi med curl
 			curl_setopt($ch, CURLOPT_FILE, $fp);
@@ -256,20 +125,20 @@ EOT
 			curl_close($ch);
 			// Lukk lokal kopi
 			fclose($fp);
-			// Åpne lokal kopi igjen og les in alt innholdet
+			// â‰ˆpne lokal kopi igjen og les in alt innholdet
 			$data=file_get_contents($lokal_xml_url,0,$ctx);
 			//Slett temp data
 			unlink($lokal_xml_url);
 			// Sjekk for feil
-			if(false==$data)$data=$this->getYrXMLErrorMessage('Det oppstod en feil mens værdata ble lest fra yr.no. Teknisk info: Mest antakelig: kobling feilet. Nest mest antakelig: Det mangler støtte for fopen wrapper, og cURL feilet også. Minst antakelig: cURL har ikke rettigheter til å lagre temp.xml');
+			if(false==$data)$data=$this->getYrXMLErrorMessage('Det oppstod en feil mens vÃŠrdata ble lest fra yr.no. Teknisk info: Mest antakelig: kobling feilet. Nest mest antakelig: Det mangler stÂ¯tte for fopen wrapper, og cURL feilet ogsÃ‚. Minst antakelig: cURL har ikke rettigheter til Ã‚ lagre temp.xml');
 		}
 		// Vi har verken fopen_wrappers eller cURL
 		else{
-			$data=$this->getYrXMLErrorMessage('Det oppstod en feil mens værdata ble forsøkt lest fra yr.no. Teknisk info: Denne PHP-installasjon har verken URL enablede fopen_wrappers eller cURL. Dette gjør det umulig å hente ned værdata. Se imiddlertid følgende dokumentasjon: http://no.php.net/manual/en/wrappers.php, http://no.php.net/manual/en/book.curl.php');
+			$data=$this->getYrXMLErrorMessage('Det oppstod en feil mens vÃŠrdata ble forsÂ¯kt lest fra yr.no. Teknisk info: Denne PHP-installasjon har verken URL enablede fopen_wrappers eller cURL. Dette gjÂ¯r det umulig Ã‚ hente ned vÃŠrdata. Se imiddlertid fÂ¯lgende dokumentasjon: http://no.php.net/manual/en/wrappers.php, http://no.php.net/manual/en/book.curl.php');
 			//die('<pre>LO:'.retar($data));
 		}
 		//die('<pre>XML for:'.$xml_url.' WAS: '.$data);
-		// Når vi har kommet hit er det noe som tyder på at vi har lykkes med å laste værdata, ller i det minste lage en teilmelding som beskriver eventuelle problemer
+		// NÃ‚r vi har kommet hit er det noe som tyder pÃ‚ at vi har lykkes med Ã‚ laste vÃŠrdata, ller i det minste lage en teilmelding som beskriver eventuelle problemer
 		return $data;
 	}
 
@@ -277,12 +146,12 @@ EOT
 	private function parseXMLIntoStruct($data){
 		global $yr_datadir;
 		$parser = xml_parser_create('ISO-8859-1');
-		if((0==$parser)||(FALSE==$parser))return $this->getYrDataErrorMessage('Det oppstod en feil mens værdata ble forsøkt hentet fra yr.no. Teknisk info: Kunne ikke lage XML parseren.');
+		if((0==$parser)||(FALSE==$parser))return $this->getYrDataErrorMessage('Det oppstod en feil mens vÃŠrdata ble forsÂ¯kt hentet fra yr.no. Teknisk info: Kunne ikke lage XML parseren.');
 		$vals = array();
 		//die('<pre>'.retar($data).'</pre>');
-		if(FALSE==xml_parser_set_option($parser, XML_OPTION_SKIP_WHITE, 1))return $this->getYrDataErrorMessage('Det oppstod en feil mens værdata ble forsøkt hentet fra yr.no. Teknisk info: Kunne ikke stille inn XML-parseren.');
-		if(0==xml_parse_into_struct($parser, $data, $vals, $index))return $this->getYrDataErrorMessage('Det oppstod en feil mens værdata ble forsøkt hentet fra yr.no. Teknisk info: Parsing av XML feilet.');
-		if(FALSE==xml_parser_free($parser))return $this->getYrDataErrorMessage('Det oppstod en feil mens værdata ble forsøkt hentet fra yr.no. Kunne ikke frigjøre XML-parseren.');
+		if(FALSE==xml_parser_set_option($parser, XML_OPTION_SKIP_WHITE, 1))return $this->getYrDataErrorMessage('Det oppstod en feil mens vÃŠrdata ble forsÂ¯kt hentet fra yr.no. Teknisk info: Kunne ikke stille inn XML-parseren.');
+		if(0==xml_parse_into_struct($parser, $data, $vals, $index))return $this->getYrDataErrorMessage('Det oppstod en feil mens vÃŠrdata ble forsÂ¯kt hentet fra yr.no. Teknisk info: Parsing av XML feilet.');
+		if(FALSE==xml_parser_free($parser))return $this->getYrDataErrorMessage('Det oppstod en feil mens vÃŠrdata ble forsÂ¯kt hentet fra yr.no. Kunne ikke frigjÂ¯re XML-parseren.');
 		//die('<pre>'.retar($vals).'</pre>');
 		return $vals;
 	}
@@ -306,10 +175,10 @@ EOT
 
 	private function rearrangeChildren($vals, &$i) {
 		$children = array(); // Contains node data
-		// Sikkerhet: sørg for at all data som parses strippes for farlige ting
+		// Sikkerhet: sÂ¯rg for at all data som parses strippes for farlige ting
 		if (isset($vals[$i]['value']))$children['VALUE'] = $this->sanitizeString($vals[$i]['value']);
 		while (++$i < count($vals)){
-			// Sikkerhet: sørg for at all data som parses strippes for farlige ting
+			// Sikkerhet: sÂ¯rg for at all data som parses strippes for farlige ting
 			if(isset($vals[$i]['value']))$val=$this->sanitizeString($vals[$i]['value']);
 			else unset($val);
 			if(isset($vals[$i]['type']))$typ=$this->sanitizeString($vals[$i]['type']);
@@ -318,7 +187,7 @@ EOT
 			else unset($atr);
 			if(isset($vals[$i]['tag']))$tag=$this->sanitizeString($vals[$i]['tag']);
 			else unset($tag);
-			// Fyll inn strukturen vær slik vi vil ha den
+			// Fyll inn strukturen vÃŠr slik vi vil ha den
 			switch ($vals[$i]['type']){
 				case 'cdata': $children['VALUE']=(isset($children['VALUE']))?$val:$children['VALUE'].$val; break;
 				case 'complete':
@@ -343,7 +212,7 @@ EOT
 			}
 		}
 	}
-	// Ommøbler data til å passe vårt formål, og returner
+	// OmmÂ¯bler data til Ã‚ passe vÃ‚rt formÃ‚l, og returner
 	private function rearrangeDataStruct($vals){
 		//die('<pre>'.$this->retar($vals).'<\pre>');
 		$tree = array();
@@ -356,41 +225,41 @@ EOT
 		//die("<pre>".retar($tree));
 		//Hent ut det vi bryr oss om
 		if(isset($tree['WEATHERDATA'][0]['FORECAST'][0]))return $tree['WEATHERDATA'][0]['FORECAST'][0];
-		else return YrComms::getYrDataErrorMessage('Det oppstod en feil ved behandling av data fra yr.no. Vennligst gjør administrator oppmerksom på dette! Teknisk: data har feil format.');
+		else return YrComms::getYrDataErrorMessage('Det oppstod en feil ved behandling av data fra yr.no. Vennligst gjÂ¯r administrator oppmerksom pÃ‚ dette! Teknisk: data har feil format.');
 	}
 
 	// Hovedmetode. Laster XML fra en yr.no URI og parser denne
 	public function getXMLTree($xml_url, $try_curl, $timeout){
-		// Last inn XML fil og parse til et array hierarcki, ommøbler data til å passe vårt formål, og returner
+		// Last inn XML fil og parse til et array hierarcki, ommÂ¯bler data til Ã‚ passe vÃ‚rt formÃ‚l, og returner
 		return $this->rearrangeDataStruct($this->parseXMLIntoStruct($this->loadXMLData($xml_url,$try_curl,$timeout)));
 	}
 
-	// Statisk hjelper for å parse ut tid i yr format
+	// Statisk hjelper for Ã‚ parse ut tid i yr format
 	public function parseTime($yr_time, $do24_00=false){
 		$yr_time=str_replace(":00:00", "", $yr_time);
 		if($do24_00)$yr_time=str_replace("00", "24", $yr_time);
 		return $yr_time;
 	}
 
-	// Statisk hjelper for å besørge riktig encoding ved å oversette spesielle ISO-8859-1 karakterer til HTML/XHTML entiteter
+	// Statisk hjelper for Ã‚ besÂ¯rge riktig encoding ved Ã‚ oversette spesielle ISO-8859-1 karakterer til HTML/XHTML entiteter
 	public function convertEncodingEntities($yrraw){
-		$conv=str_replace("æ", "&aelig;", $yrraw);
-		$conv=str_replace("ø", "&oslash;", $conv);
-		$conv=str_replace("å", "&aring;", $conv);
-		$conv=str_replace("Æ", "&AElig;", $conv);
-		$conv=str_replace("Ø", "&Oslash;", $conv);
-		$conv=str_replace("Å", "&Aring;", $conv);
+		$conv=str_replace("ÃŠ", "&aelig;", $yrraw);
+		$conv=str_replace("Â¯", "&oslash;", $conv);
+		$conv=str_replace("Ã‚", "&aring;", $conv);
+		$conv=str_replace("âˆ†", "&AElig;", $conv);
+		$conv=str_replace("Ã¿", "&Oslash;", $conv);
+		$conv=str_replace("â‰ˆ", "&Aring;", $conv);
 		return $conv;
 	}
 
-	// Statisk hjelper for å besørge riktig encoding vedå oversette spesielle UTF karakterer til ISO-8859-1
+	// Statisk hjelper for Ã‚ besÂ¯rge riktig encoding vedÃ‚ oversette spesielle UTF karakterer til ISO-8859-1
 	public function convertEncodingUTF($yrraw){
-		$conv=str_replace("Ã¦", "æ", $yrraw);
-		$conv=str_replace("Ã¸", "ø", $conv);
-		$conv=str_replace("Ã¥", "å", $conv);
-		$conv=str_replace("Ã†", "Æ", $conv);
-		$conv=str_replace("Ã˜", "Ø", $conv);
-		$conv=str_replace("Ã…", "Å", $conv);
+		$conv=str_replace("âˆšÂ¶", "ÃŠ", $yrraw);
+		$conv=str_replace("âˆšâˆ", "Â¯", $conv);
+		$conv=str_replace("âˆšâ€¢", "Ã‚", $conv);
+		$conv=str_replace("âˆšÃœ", "âˆ†", $conv);
+		$conv=str_replace("âˆšÃ²", "Ã¿", $conv);
+		$conv=str_replace("âˆšÃ–", "â‰ˆ", $conv);
 		return $conv;
 	}
 
@@ -420,10 +289,10 @@ EOT
 	}
 }
 
-// Klasse for å vise data fra yr. Kompatibel med YRComms sin datastruktur
+// Klasse for Ã‚ vise data fra yr. Kompatibel med YRComms sin datastruktur
 class YRDisplay{
 
-	// Akkumulator variabl for å holde på generert HTML
+	// Akkumulator variabl for Ã‚ holde pÃ‚ generert HTML
 	var $ht='';
 	// Yr Url
 	var $yr_url='';
@@ -431,8 +300,9 @@ class YRDisplay{
 	var $yr_name='';
 	// Yr data
 	var $yr_data=Array();
-	
-	public $markdays = array();
+
+	// market with class .flagday
+	public $flagdays = array();
 
 	//Filename for cached HTML. MD5 hash will be prepended to allow caching of several pages
 	var $datafile='yr.html';
@@ -448,11 +318,11 @@ class YRDisplay{
 
 	// Hvor hentes bilder til symboler fra?
 	var $yr_imgpath='http://fil.nrk.no/yr/grafikk/sym/b38';
-
+	private $yr_arrowpath = 'http://fil.nrk.no/yr/grafikk/vindpiler/32/';
 
 	//Generer header for varselet
 	public function getHeader($use_full_html){
-		// Her kan du endre header til hva du vil. NB! Husk å skru det på, ved å endre instillingene i toppen av dokumentet
+		// Her kan du endre header til hva du vil. NB! Husk Ã‚ skru det pÃ‚, ved Ã‚ endre instillingene i toppen av dokumentet
 		if($use_full_html){
 			$this->ht.=<<<EOT
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
@@ -481,7 +351,7 @@ EOT
 
 EOT
 		;
-		// Her kan du endre footer til hva du vil. NB! Husk å skru det på, ved å endre instillingene i toppen av dokumentet
+		// Her kan du endre footer til hva du vil. NB! Husk Ã‚ skru det pÃ‚, ved Ã‚ endre instillingene i toppen av dokumentet
 		if($use_full_html){
 			$this->ht.=<<<EOT
   </body>
@@ -508,10 +378,10 @@ EOT
    public function getCopyright($target='_top'){
       $url=YRComms::convertEncodingEntities($this->yr_url);
       /*
-       Du må ta med teksten nedenfor og ha med lenke til yr.no.
-       Om du fjerner denne teksten og lenkene, bryter du vilkårene for bruk av data fra yr.no.
-       Det er straffbart å bruke data fra yr.no i strid med vilkårene.
-       Du finner vilkårene på http://www.yr.no/verdata/1.3316805
+       Du mÃ‚ ta med teksten nedenfor og ha med lenke til yr.no.
+       Om du fjerner denne teksten og lenkene, bryter du vilkÃ‚rene for bruk av data fra yr.no.
+       Det er straffbart Ã‚ bruke data fra yr.no i strid med vilkÃ‚rene.
+       Du finner vilkÃ‚rene pÃ‚ http://www.yr.no/verdata/1.3316805
        */
       $this->ht.=<<<EOT
       <h2><a href="$url" target="$target">V&aelig;rvarsel for $this->yr_name</a></h2>
@@ -522,13 +392,13 @@ EOT
    }
 
 
-   //Generer tekst for været
+   //Generer tekst for vÃŠret
 	public function getWeatherText(){
 		if((isset($this->yr_data['TEXT'])) && (isset($this->yr_data['TEXT'][0]['LOCATION']))&& (isset($this->yr_data['TEXT'][0]['LOCATION'][0]['ATTRIBUTES'])) ){
 			$yr_place=$this->yr_data['TEXT'][0]['LOCATION'][0]['ATTRIBUTES']['NAME'];
 			if(!isset($this->yr_data['TEXT'][0]['LOCATION'][0]['TIME']))return;
 			foreach($this->yr_data['TEXT'][0]['LOCATION'][0]['TIME'] as $yr_var2){
-				// Små bokstaver
+				// SmÃ‚ bokstaver
 				$l=(YRComms::convertEncodingUTF($yr_var2['TITLE'][0]['VALUE']));
 				// Rettet encoding
 				$e=YRComms::reviveSafeTags(YRComms::convertEncodingUTF($yr_var2['BODY'][0]['VALUE']));
@@ -559,11 +429,11 @@ EOT
 		;
 	}
 
-	//Generer header for værdatatabellen
+	//Generer header for vÃŠrdatatabellen
 	public function getWeatherTableHeader(){
 		$name=$this->yr_name;
 		$this->ht.=<<<EOT
-      <table summary="V&aelig;rvarsel for $name fra yr.no">
+      <table id="wpYr" summary="V&aelig;rvarsel for $name fra yr.no">
         <thead>
           <tr>
             <th class="v" colspan="3"><strong>Varsel for $name</strong></th>
@@ -579,14 +449,26 @@ EOT
 		;
 	}
 
+	private function windImg ($deg, $mps) {
+        $beufort = array(0.3, 1.5, 3.4, 5,4, 7.9, 10.7, 13.8, 17.1, 20.7, 24.4, 28.4, 32.6);
+        foreach ($beufort as $i => $beu) {
+			if ($mps < $beu)
+				break;
+			$speed = sprintf("%04d", ($i - 1) * 25);
+		}
+		$speed = ((int)(($mps * 13) / 32.6)) * 25;
+		$speed = str_pad($speed, 4, 0, STR_PAD_LEFT);
+		$direction = sprintf("%03d", ((int)($deg / 5)) * 5);
+ 		return 'vindpil.'.$speed.'.'.$direction.'.png';
+	}
 
-	//Generer innholdet i værdatatabellen
+	//Generer innholdet i vÃŠrdatatabellen
 	public function getWeatherTableContent(){
 		$thisdate='';
 		$dayctr=0;
 		if(!isset($this->yr_data['TABULAR'][0]['TIME']))return;
 		$a=$this->yr_data['TABULAR'][0]['TIME'];
-		$classMarkDate = '';
+		$classFlagDate = '';
 		$maxdays = 14;
 
 		foreach($a as $yr_var3){
@@ -607,10 +489,10 @@ EOT
 				$ts = strtotime($displaydate);
 				$displaydate = strftime('%A %e. %b', $ts);
 				$day = date('D', $ts);
-				if (in_array($day, $this->markdays)) {
-					$classMarkDate = 'markday';
+				if (in_array($day, $this->flagdays)) {
+					$classFlagDate = 'flagday';
 				} else {
-					$classMarkDate = '';
+					$classFlagDate = '';
 				}
 				$firstcellcont=$displaydate;
 				$thisdate=$fromdate;
@@ -640,6 +522,7 @@ EOT
 				// Behandle vind
 				$winddir=round($yr_var3['WINDDIRECTION'][0]['ATTRIBUTES']['DEG']/22.5);
 				$winddirtext=$this->yr_vindrettninger[$winddir];
+				$windImg = $this->windImg($yr_var3['WINDDIRECTION'][0]['ATTRIBUTES']['DEG'], $yr_var3['WINDSPEED'][0]['ATTRIBUTES']['MPS']);
 				// Behandle temperatur
 				$temper=round($yr_var3['TEMPERATURE'][0]['ATTRIBUTES']['VALUE']);
 				if($temper>=0)$tempclass='pluss';
@@ -647,15 +530,15 @@ EOT
 
 				// Rund av vindhastighet
 				$r=round($yr_var3['WINDSPEED'][0]['ATTRIBUTES']['MPS']);
-				// Så legger vi ut hele den ferdige linjen
+				// SÃ‚ legger vi ut hele den ferdige linjen
 				$s=$yr_var3['SYMBOL'][0]['ATTRIBUTES']['NAME'];
 				$w=$yr_var3['WINDSPEED'][0]['ATTRIBUTES']['NAME'];
 
 				$this->ht.=<<<EOT
           <tr>
-            <th class="$classMarkDate">$firstcellcont</th>
+            <th class="$classFlagDate">$firstcellcont</th>
             <th>$fromtime&#8211;$totime</th>
-            <td><img src="$this->yr_imgpath/$imgno.png" width="38" height="38" alt="$s" /></td>
+            <td><img src="$this->yr_imgpath/$imgno.png" width="38" height="38" alt="$s" />&nbsp;<img src="$this->yr_arrowpath/$windImg" width="32" height="32" alt="$w fra $winddirtext" /></td>
             <td>$rain</td>
             <td class="$tempclass">$temper&deg;</td>
             <td class="v">$w fra $winddirtext</td>
@@ -668,7 +551,7 @@ EOT
 		}
 	}
 
-	//Generer footer for værdatatabellen
+	//Generer footer for vÃŠrdatatabellen
 	public function getWeatherTableFooter($target='_top'){
 		$this->ht.=<<<EOT
           <tr>
@@ -715,11 +598,11 @@ EOT
 			$data['value']=file_get_contents($yr_cached);
 			// Sjekk for feil
 			if(false==$data['value']){
-	  	$data['value']='<p>Det oppstod en feil mens værdata ble lest fra lokalt mellomlager. Vennligst gjør administrator oppmerksom på dette! Teknisk: Sjekk at rettighetene er i orden som beskrevet i bruksanvisningen for dette scriptet</p>';
+	  	$data['value']='<p>Det oppstod en feil mens vÃŠrdata ble lest fra lokalt mellomlager. Vennligst gjÂ¯r administrator oppmerksom pÃ‚ dette! Teknisk: Sjekk at rettighetene er i orden som beskrevet i bruksanvisningen for dette scriptet</p>';
 	  	$data['error'] = true;
 	  }
 		}
-		// Vi kjører live, og saver samtidig en versjon til mellomlager
+		// Vi kjÂ¯rer live, og saver samtidig en versjon til mellomlager
 		else{
 			$data=$this->generateHTML($url,$name,$xml->getXMLTree($url, $try_curl, $timeout),$useHtmlHeader,$useHtmlFooter,$useBanner,$useText,$useLinks,$useTable,$urlTarget);
 			// Lagre til mellomlager

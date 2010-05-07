@@ -28,10 +28,18 @@ License: GPL2
 if(preg_match('#' . basename(__FILE__) . '#', $_SERVER['PHP_SELF'])) { die('You are not allowed to call this page directly.'); }
 
 add_shortcode('wpyr', 'wpyr');
+initYr();
+
+function initYr () {
+	// ToDo: Only load when plugin is in use
+	$mydir = substr(dirname(__FILE__), strrpos(dirname(__FILE__), '/'));
+	wp_enqueue_style('wpYr', WP_PLUGIN_URL . $mydir . '/style.css');
+}
 
 function wpyr ($attr) {
 	global $yr_datadir;
 	// defaults
+	$flagdays = '';
 	$yr_use_header = $yr_use_footer = false;
 	$yr_use_banner = false; //yr.no Banner
 	$yr_use_text = false;   //Tekstvarsel
@@ -50,6 +58,7 @@ function wpyr ($attr) {
 	// the user may not change these
 	$yr_vis_php_feilmeldinger = false;
 	$yr_maxage = 1200;
+	//$yr_maxage = 0; /* for debug */
 	$yr_timeout = 10;
 	$yr_datadir = WP_CONTENT_DIR . '/cache/yr_cache';
 	$yr_try_curl = true;
@@ -57,7 +66,7 @@ function wpyr ($attr) {
 	include_once('yr.php');
 	$yr_xmlparse = new YRComms();
 	$yr_xmldisplay = new YRDisplay();
-	$yr_xmldisplay->markdays = array('Tue', 'Thu', 'Sat');
+	$yr_xmldisplay->flagdays = explode(' ', $flagdays);
 	return $yr_xmldisplay->generateHTMLCached($url, $name, $yr_xmlparse, $url, $yr_try_curl, $yr_use_header, $yr_use_footer, $yr_use_banner, $yr_use_text, $yr_use_links, $yr_use_table, $yr_maxage, $yr_timeout, $yr_link_target);
 }
  
