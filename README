@@ -1,0 +1,7 @@
+Put files in WP_CONTENT_DIR . '/plugins/yr-weather'
+Create the folder WP_CONTENT_DIR . '/cache/yr_cache'
+Make yr_cache writable by the web server
+In a post or page insert [wpyr 
+url="http://www.yr.no/place/Denmark/North_Jutland/Skagen/" 
+name="Skagen"]
+
