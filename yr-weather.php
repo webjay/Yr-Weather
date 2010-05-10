@@ -1,9 +1,9 @@
 <?php
 /*
 Plugin Name: Yr Weather
-Plugin URI: http://www.yr.no/verdata/1.5542682
+Plugin URI: http://wordpress.org/extend/plugins/yr-weather/
 Description: Weather data from yr.no
-Version: 0.2
+Version: 1.0
 Author: Jacob Friis Saxberg
 Author URI: http://jacob.saxberg.dk/
 License: GPL2
