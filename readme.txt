@@ -1,7 +1,11 @@
 === Yr Weather ===
 
-Donate link: http://pledgie.com/campaigns/10560
+Contributors: webjay
 Tags: weather, yr
+Tested up to: 2.9.2
+Requires at least: 2.9
+Stable tag: trunk
+Donate link: http://pledgie.com/campaigns/10560
 
 Weather data from yr.no on a page or post
 
